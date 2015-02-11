@@ -1,10 +1,10 @@
-const coap_types[] = { "EMPTY", "CON", "NON", "ACK", "RST" };
-const coap_methods[] = { "GET", "POST", "PUT", "DELETE" };
+const coap_types = [ "EMPTY", "CON", "NON", "ACK", "RST" ];
+const coap_methods = [ "GET", "POST", "PUT", "DELETE" ];
 
 var util = require('util');
 var peers = [];
 
-function get_coapcode(octet)
+function parse_coapcode(octet)
 {
   var class_ = (octet & 0xe0) >>> 5;
   var detail = octet & 0x1f;
@@ -18,20 +18,32 @@ function get_coapcode(octet)
   return ret;
 }
 
-module.exports = {
+function parse_coapoption(msg, pkt, i, last_type)
+{
+  var opt = {};
 
-recv: function(packet, peer) {
-  var len = packet.length;
+  opt.type = (pkt[i] & 0xf0)>>>4;
+  opt.len = pkt[i] & 0x0f;
+  i++;
 
-  if(len < 4) {
-    console.log('cjcoap.recv: insufficient received packet: ' + len);
-    return;
-  }
+  if(opt.type > 12)
+    opt.type += pkt[i];
+  opt.type += last_type;
+  i++;
 
-  var msg = coap_parser(packet);
-};
+  if(opt.len > 12)
+    opt.len += pkt[i];
+  i++;
 
-coap_parser: function(packet) {
+  var val = new Buffer(pkt.slice(i, opt.len));
+  opt.value = val;
+  msg.options.push(opt);
+  i += opt.value.length;
+  return i;
+}
+
+function coap_parser(packet)
+{
   var msg = {};
   var octet;
   var len = packet.length;
@@ -40,32 +52,50 @@ coap_parser: function(packet) {
 
   msg.ver = (octet & 0xc0) >>> 6;
   msg.type = coap_types[(octet&0x30)>>4];
-  msg.code = get_coapcode(packet.readUInt8(1));
+  msg.code = parse_coapcode(packet.readUInt8(1));
   msg.mid = packet.readUInt16BE(2);
-
-  msg.tkl = (octet & 0x0f);
-  if(msg.tkl == 0)
-    msg.token = [];
-  else
-    msg.token = new UInt8Array(packet.slice(4, msg.tkl)); // or Buffer?
+  console.log('#1: '+packet);
+  msg.token = new Buffer(packet.slice(4, octet&0x0f));
+  console.log('#2: '+packet);
 
   // options & payload
-  var i = msg.tkl + 4;
+  msg.options = [];
+  var i = msg.token.length + 4;
+  var last_type = 0;
 
   while(i < len) {
     if(packet[i] != 0xff) { // option(s)
-      // TODO: add option codes
+      i = parse_coapoption(msg, packet, i, last_type);
+      last_type = msg.options[msg.options.length-1].type;
     }
     else { // payload
-      var p_len = len - (i+1);
-      if(p_len > 0)
-        msg.payload = new UInt8Array(packet.slice(i+1, p_len)); // or Buffer?
-      i += (p_len + 1);
+      i++;
+      var p_len = len - i;
+      msg.payload = new Buffer(packet.slice(i, p_len));
+      i += p_len;
     }
   }
 
   return msg;
-};
-
 }
 
+module.exports = {
+
+recv: function(packet, peer) {
+  var len = packet.length;
+
+  if(len < 4) {
+    console.log('cjcoap.recv: Invalid len of CoAP msg: ' + len);
+    return;
+  }
+
+  var msg = coap_parser(packet);
+  console.log(msg);
+  console.log('tkl: '+msg.token.length);
+
+  var i;
+  for(i = 0; i < msg.options.length; i++)
+    console.log('len of option #'+(i+1)+': '+msg.options[i].length);
+}
+
+}
