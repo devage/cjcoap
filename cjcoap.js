@@ -1,5 +1,5 @@
-const coap_types = [ "EMPTY", "CON", "NON", "ACK", "RST" ];
-const coap_methods = [ "GET", "POST", "PUT", "DELETE" ];
+const coap_types = [ "CON", "NON", "ACK", "RST" ];
+const coap_methods = [ "EMPTY", "GET", "POST", "PUT", "DELETE" ];
 
 var util = require('util');
 var peers = [];
@@ -11,7 +11,7 @@ function parse_coapcode(octet)
   var ret = "";
 
   if(class_ == 0x00)
-    ret = coap_types[detail];
+    ret = coap_methods[detail];
   else
     ret = util.format('%d.%02d', class_, detail);
 
@@ -21,21 +21,23 @@ function parse_coapcode(octet)
 function parse_coapoption(msg, pkt, i, last_type)
 {
   var opt = {};
+  var len = pkt[i] & 0x0f;
 
   opt.type = (pkt[i] & 0xf0)>>>4;
-  opt.len = pkt[i] & 0x0f;
   i++;
 
-  if(opt.type > 12)
+  if(opt.type > 12) {
     opt.type += pkt[i];
+    i++;
+  }
   opt.type += last_type;
-  i++;
 
-  if(opt.len > 12)
-    opt.len += pkt[i];
-  i++;
+  if(len > 12) {
+    len += pkt[i];
+    i++;
+  }
 
-  var val = new Buffer(pkt.slice(i, opt.len));
+  var val = new Buffer(pkt.slice(i, i+len));
   opt.value = val;
   msg.options.push(opt);
   i += opt.value.length;
@@ -54,9 +56,7 @@ function coap_parser(packet)
   msg.type = coap_types[(octet&0x30)>>4];
   msg.code = parse_coapcode(packet.readUInt8(1));
   msg.mid = packet.readUInt16BE(2);
-  console.log('#1: '+packet);
-  msg.token = new Buffer(packet.slice(4, octet&0x0f));
-  console.log('#2: '+packet);
+  msg.token = new Buffer(packet.slice(4, 4+(octet&0x0f)));
 
   // options & payload
   msg.options = [];
@@ -71,7 +71,7 @@ function coap_parser(packet)
     else { // payload
       i++;
       var p_len = len - i;
-      msg.payload = new Buffer(packet.slice(i, p_len));
+      msg.payload = new Buffer(packet.slice(i, i+p_len));
       i += p_len;
     }
   }
@@ -91,11 +91,6 @@ recv: function(packet, peer) {
 
   var msg = coap_parser(packet);
   console.log(msg);
-  console.log('tkl: '+msg.token.length);
-
-  var i;
-  for(i = 0; i < msg.options.length; i++)
-    console.log('len of option #'+(i+1)+': '+msg.options[i].length);
 }
 
 }
