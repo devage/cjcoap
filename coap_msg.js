@@ -32,7 +32,7 @@ function Coap_msg()
 
 module.exports = Coap_msg;
 
-Coap_msg.prototype._get_code = function(code) {
+Coap_msg.prototype.get_codestring = function(code) {
   var class_ = (code & 0xe0) >>> 5;
   var detail = code & 0x1f;
   var ret = "";
@@ -45,7 +45,7 @@ Coap_msg.prototype._get_code = function(code) {
   return ret;
 };
 
-Coap_msg.prototype._parse_option = function(buf, i, last_type) {
+Coap_msg.prototype.parse_option = function(buf, i, last_type) {
   var type = (buf[i] & 0xf0)>>>4;
   var len = buf[i] & 0x0f;
   i++;
@@ -78,7 +78,7 @@ Coap_msg.prototype.parse = function(packet) {
 
   while(i < len) {
     if(packet[i] != 0xff) { // option(s)
-      i = this._parse_option(packet, i, last_type);
+      i = this.parse_option(packet, i, last_type);
       last_type = this.options[this.options.length-1].type;
     }
     else { // payload
@@ -97,7 +97,7 @@ Coap_msg.prototype.toString = function() {
   var obj = {
     'ver': this.ver,
     'type': coap_types[this.type],
-    'code': this._get_code(this.code),
+    'code': this.get_codestring(this.code),
     'mid': this.mid.toString(16),
     'options': []
   };
