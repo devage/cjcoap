@@ -14,6 +14,8 @@ recv: function(packet, peer) {
 
   msg.parse(packet);
   console.log(msg.toString());
+  var pkt_test = msg.packetize();
+  console.log(pkt_test);
 }
 
 }

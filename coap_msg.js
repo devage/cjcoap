@@ -50,9 +50,17 @@ Coap_msg.prototype.parse_option = function(buf, i, last_type) {
   var len = buf[i] & 0x0f;
   i++;
 
-  if(type > 12) type += buf[i++];
+  if(type == 13) type = buf[i++] + 13;
+  else if(type == 14) {
+    type = buf.readUInt16BE(i) + 269;
+    i += 2;
+  }
 
-  if(len > 12) len += buf[i++];
+  if(len == 13) len = buf[i++] + 13;
+  else if(type == 14) {
+    type = buf.readUInt16BE(i) + 269;
+    i += 2;
+  }
 
   var opt = {};
   opt.type = type + last_type;
@@ -90,6 +98,92 @@ Coap_msg.prototype.parse = function(packet) {
   }
 }
 
+Coap_msg.prototype.packetize_option = function(opt, last_type) {
+  var buf = new Buffer(1500);
+  var i = 0, octet = 0;
+  var type = opt.type - last_type;
+  var len = opt.value.length;
+
+  if(type < 13) {
+    octet |= (type << 4);
+    type = 0;
+  }
+  else if(type < 269) {
+    octet |= (13 << 4);
+    type -= 13;
+  }
+  else {
+    octet |= (14 << 4);
+    type -= 269;
+  }
+
+  if(len < 13) {
+    octet |= (len & 0x0f);
+    len = 0;
+  }
+  else if(len < 269) {
+    octet |= (13 & 0x0f);
+    len -= 13;
+  }
+  else {
+    octet |= (14 & 0x0f);
+    len -= 269;
+  }
+
+  buf.writeUInt8(octet, i++);
+
+  if(type > 12 && type < 256)
+    buf.writeUInt8(type, i++);
+  else if(type > 255) {
+    buf.writeUInt16BE(type, i);
+    i += 2;
+  }
+
+  if(len > 12 && len < 256)
+    buf.writeUInt8(len, i++);
+  else if(len > 255) {
+    buf.writeUInt16BE(len, i);
+    i += 2;
+  }
+
+  opt.value.copy(buf, i);
+  i += opt.value.length;
+
+  return new Buffer(buf.slice(0, i));
+}
+
+Coap_msg.prototype.packetize = function() {
+  var buf = new Buffer(1500);
+  var i = 0, last_type = 0;
+  var octet = (this.ver << 6) | (this.type << 4);
+
+  if(this.token != undefined)
+    octet |= (this.token.length & 0x0f);
+
+  buf.writeUInt8(octet, i++);
+  buf.writeUInt8(this.code, i++);
+  buf.writeUInt16BE(this.mid, i);
+  i += 2;
+  this.token.copy(buf, i);
+  i += this.token.length;
+
+  // option
+  for(var j in this.options) {
+    var o = this.packetize_option(this.options[j], last_type);
+    o.copy(buf, i);
+    i += o.length;
+    last_type = this.options[j].type;
+  }
+
+  if(this.payload != undefined) {
+    buf.writeUInt8(0xff, i++);
+    this.payload.copy(buf, i);
+    i += this.payload.length;
+  }
+
+  return new Buffer(buf.slice(0, i));
+}
+
 Coap_msg.prototype.toString = function() {
   if(this.ver == undefined)
     return '(undefined)';
@@ -105,17 +199,16 @@ Coap_msg.prototype.toString = function() {
   if(this.token != undefined)
     obj['token'] = this.token.toString('hex');
 
-  if(this.payload != undefined)
-    obj['payload'] = this.payload.toString('hex');
-  
   for(var i in this.options) {
-    var o = {
+    obj['options'].push({
       'type': coap_options[this.options[i].type],
       'len': this.options[i].value.length,
       'val': this.options[i].value.toString('hex')
-    };
-    obj['options'].push(o);
+    });
   }
+
+  if(this.payload != undefined)
+    obj['payload'] = this.payload.toString('hex');
 
   return JSON.stringify(obj);
 }
