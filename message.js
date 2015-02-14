@@ -20,19 +20,19 @@ const coap_options = {
   '60': 'Size1'
 };
 
-function Coap_msg()
+function CoapMessage()
 {
-  if(!(this instanceof Coap_msg))
-    return new Coap_msg();
+  if(!(this instanceof CoapMessage))
+    return new CoapMessage();
 
   var ver, type, code, mid, token, payload, options;
 
   this.options = [];
 }
 
-module.exports = Coap_msg;
+module.exports = CoapMessage;
 
-Coap_msg.prototype.get_codestring = function(code) {
+CoapMessage.prototype.get_codestring = function(code) {
   var class_ = (code & 0xe0) >>> 5;
   var detail = code & 0x1f;
   var ret = "";
@@ -45,7 +45,7 @@ Coap_msg.prototype.get_codestring = function(code) {
   return ret;
 };
 
-Coap_msg.prototype.parse_option = function(buf, i, last_type) {
+CoapMessage.prototype.parse_option = function(buf, i, last_type) {
   var type = (buf[i] & 0xf0)>>>4;
   var len = buf[i] & 0x0f;
   i++;
@@ -70,7 +70,7 @@ Coap_msg.prototype.parse_option = function(buf, i, last_type) {
   return (i + opt.value.length);
 };
 
-Coap_msg.prototype.parse = function(packet) {
+CoapMessage.prototype.parse = function(packet) {
   var octet = packet[0];
   var len = packet.length;
 
@@ -98,7 +98,7 @@ Coap_msg.prototype.parse = function(packet) {
   }
 }
 
-Coap_msg.prototype.packetize_option = function(opt, last_type) {
+CoapMessage.prototype.packetize_option = function(opt, last_type) {
   var buf = new Buffer(1500);
   var i = 0, octet = 0;
   var type = opt.type - last_type;
@@ -152,7 +152,7 @@ Coap_msg.prototype.packetize_option = function(opt, last_type) {
   return new Buffer(buf.slice(0, i));
 }
 
-Coap_msg.prototype.packetize = function() {
+CoapMessage.prototype.packetize = function() {
   var buf = new Buffer(1500);
   var i = 0, last_type = 0;
   var octet = (this.ver << 6) | (this.type << 4);
@@ -184,7 +184,7 @@ Coap_msg.prototype.packetize = function() {
   return new Buffer(buf.slice(0, i));
 }
 
-Coap_msg.prototype.toString = function() {
+CoapMessage.prototype.toString = function() {
   if(this.ver == undefined)
     return '(undefined)';
 

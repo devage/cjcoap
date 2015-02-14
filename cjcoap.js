@@ -1,11 +1,11 @@
-var Coap_msg = require('./coap_msg');
+var Message = require('./message');
 var peers = [];
 
 module.exports = {
 
 recv: function(packet, peer) {
   var len = packet.length;
-  var msg = new Coap_msg();
+  var msg = new Message();
 
   if(len < 4) {
     console.log('cjcoap.recv: Invalid len of CoAP msg: ' + len);
