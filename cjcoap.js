@@ -1,21 +1,32 @@
+var udp = require('./udp');
 var Message = require('./message');
 var peers = [];
 
 module.exports = {
 
+callback_receive: undefined,
+
+init: function(type, recv_func) {
+
+  if(recv_func)
+    callback_receive = recv_func;
+
+  return udp.init(type, this.recv);
+},
+
 recv: function(packet, peer) {
-  var len = packet.length;
   var msg = new Message();
 
   if(len < 4) {
-    console.log('cjcoap.recv: Invalid len of CoAP msg: ' + len);
+    console.log('cjcoap.recv: Invalid CoAP msg -- '
+        + packet.length + 'bytes');
     return;
   }
 
   msg.parse(packet);
-  console.log(msg.toString());
-  var pkt_test = msg.packetize();
-  console.log(pkt_test);
+
+  if(this.callback_receive != undefined)
+    this.callback_receive(msg, peer);
 }
 
 }
