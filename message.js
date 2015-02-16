@@ -1,31 +1,31 @@
 var util = require('util');
 
-const coap_types = [ "CON", "NON", "ACK", "RST" ];
-const coap_methods = [ "EMPTY", "GET", "POST", "PUT", "DELETE" ];
-const coap_options = {
-  '1': 'If-Match',
-  '3': 'Uri-Host',
-  '4': 'ETag',
-  '5': 'If-None-Match',
-  '7': 'Uri-Port',
-  '8': 'Location-Path',
-  '11': 'Uri-Path',
-  '12': 'Content-Format',
-  '14': 'Max-Age',
-  '15': 'Uri-Query',
-  '17': 'Accept',
-  '20': 'Location-Query',
-  '35': 'Proxy-Uri',
-  '39': 'Proxy-Scheme',
-  '60': 'Size1'
-};
-
 function CoapMessage()
 {
   if(!(this instanceof CoapMessage))
     return new CoapMessage();
 
-  var ver, type, code, mid, token, payload, options;
+  this.types = [ "CON", "NON", "ACK", "RST" ];
+  this.methods = [ "EMPTY", "GET", "POST", "PUT", "DELETE" ];
+
+  this.option_types = [];
+  this.option_types[1]  = 'If-Match';
+  this.option_types[3]  = 'Uri-Host';
+  this.option_types[4]  = 'ETag';
+  this.option_types[5]  = 'If-None-Match';
+  this.option_types[7]  = 'Uri-Port';
+  this.option_types[8]  = 'Location-Path';
+  this.option_types[11] = 'Uri-Path';
+  this.option_types[12] = 'Content-Format';
+  this.option_types[14] = 'Max-Age';
+  this.option_types[15] = 'Uri-Query';
+  this.option_types[17] = 'Accept';
+  this.option_types[20] = 'Location-Query';
+  this.option_types[35] = 'Proxy-Uri';
+  this.option_types[39] = 'Proxy-Scheme';
+  this.option_types[60] = 'Size1';
+
+  var ver, type, code, mid, token, payload;
 
   this.options = [];
 }
@@ -38,7 +38,7 @@ CoapMessage.prototype.get_codestring = function(code) {
   var ret = "";
 
   if(class_ == 0x00)
-    ret = coap_methods[detail];
+    ret = this.methods[detail];
   else
     ret = util.format('%d.%02d', class_, detail);
 
@@ -217,7 +217,7 @@ CoapMessage.prototype.toString = function() {
 
   var obj = {
     'ver': this.ver,
-    'type': coap_types[this.type],
+    'type': this.types[this.type],
     'code': this.get_codestring(this.code),
     'mid': this.mid.toString(16),
     'options': []
@@ -228,7 +228,7 @@ CoapMessage.prototype.toString = function() {
 
   for(var i in this.options) {
     obj['options'].push({
-      'type': coap_options[this.options[i].type],
+      'type': this.option_types[this.options[i].type],
       'len': this.options[i].value.length,
       'val': this.options[i].value.toString('hex')
     });
