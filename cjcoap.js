@@ -17,7 +17,7 @@ init: function(type, recv_func) {
 recv: function(packet, peer) {
   var msg = new Message();
 
-  if(len < 4) {
+  if(packet.length < 4) {
     console.log('cjcoap.recv: Invalid CoAP msg -- '
         + packet.length + 'bytes');
     return;
