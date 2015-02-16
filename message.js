@@ -1,29 +1,29 @@
 var util = require('util');
 
+var types = [ "CON", "NON", "ACK", "RST" ];
+var methods = [ "EMPTY", "GET", "POST", "PUT", "DELETE" ];
+var option_types = [];
+
 function CoapMessage()
 {
   if(!(this instanceof CoapMessage))
     return new CoapMessage();
 
-  this.types = [ "CON", "NON", "ACK", "RST" ];
-  this.methods = [ "EMPTY", "GET", "POST", "PUT", "DELETE" ];
-
-  this.option_types = [];
-  this.option_types[1]  = 'If-Match';
-  this.option_types[3]  = 'Uri-Host';
-  this.option_types[4]  = 'ETag';
-  this.option_types[5]  = 'If-None-Match';
-  this.option_types[7]  = 'Uri-Port';
-  this.option_types[8]  = 'Location-Path';
-  this.option_types[11] = 'Uri-Path';
-  this.option_types[12] = 'Content-Format';
-  this.option_types[14] = 'Max-Age';
-  this.option_types[15] = 'Uri-Query';
-  this.option_types[17] = 'Accept';
-  this.option_types[20] = 'Location-Query';
-  this.option_types[35] = 'Proxy-Uri';
-  this.option_types[39] = 'Proxy-Scheme';
-  this.option_types[60] = 'Size1';
+  option_types[1]  = 'If-Match';
+  option_types[3]  = 'Uri-Host';
+  option_types[4]  = 'ETag';
+  option_types[5]  = 'If-None-Match';
+  option_types[7]  = 'Uri-Port';
+  option_types[8]  = 'Location-Path';
+  option_types[11] = 'Uri-Path';
+  option_types[12] = 'Content-Format';
+  option_types[14] = 'Max-Age';
+  option_types[15] = 'Uri-Query';
+  option_types[17] = 'Accept';
+  option_types[20] = 'Location-Query';
+  option_types[35] = 'Proxy-Uri';
+  option_types[39] = 'Proxy-Scheme';
+  option_types[60] = 'Size1';
 
   var ver, type, code, mid, token, payload;
 
@@ -38,7 +38,7 @@ CoapMessage.prototype.get_codestring = function(code) {
   var ret = "";
 
   if(class_ == 0x00)
-    ret = this.methods[detail];
+    ret = methods[detail];
   else
     ret = util.format('%d.%02d', class_, detail);
 
@@ -217,7 +217,7 @@ CoapMessage.prototype.toString = function() {
 
   var obj = {
     'ver': this.ver,
-    'type': this.types[this.type],
+    'type': types[this.type],
     'code': this.get_codestring(this.code),
     'mid': this.mid.toString(16),
     'options': []
@@ -228,7 +228,7 @@ CoapMessage.prototype.toString = function() {
 
   for(var i in this.options) {
     obj['options'].push({
-      'type': this.option_types[this.options[i].type],
+      'type': option_types[this.options[i].type],
       'len': this.options[i].value.length,
       'val': this.options[i].value.toString('hex')
     });
