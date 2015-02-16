@@ -98,6 +98,33 @@ CoapMessage.prototype.parse = function(packet) {
   }
 }
 
+CoapMessage.prototype.packetize_optionvalue = function(type, value) {
+  if(type == 'empty')
+    return new Buffer(0);
+  else if(type == 'uint') {
+    if(value == 0)
+      return new Buffer(0);
+    else {
+      var v = new Buffer(8),
+          i = v.length;
+      while(value != 0) {
+        i--;
+        s.writeUInt8(value%256, i);
+        value = Math.floor(value/256);
+      }
+      return v.slice(i+1, v.length);
+    }
+  }
+  else if(type == 'string')
+    return new Buffer(value, 'utf-8');
+  else { // opaque
+    if(!(value instanceof Buffer))
+      return new Buffer(value);
+    else
+      return value;
+  }
+}
+
 CoapMessage.prototype.packetize_option = function(opt, last_type) {
   var buf = new Buffer(1500);
   var i = 0, octet = 0;
