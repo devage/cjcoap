@@ -1,3 +1,3 @@
-var udpio = require('./udpio');
+var udp = require('./udp');
 
-udpio.init();
+udp.init();
