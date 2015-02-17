@@ -1,8 +1,9 @@
 var util = require('util');
 
-var types = [ "CON", "NON", "ACK", "RST" ];
-var methods = [ "EMPTY", "GET", "POST", "PUT", "DELETE" ];
+var types = [ 'CON', 'NON', 'ACK', 'RST' ];
+var methods = [ 'EMPTY', 'GET', 'POST', 'PUT', 'DELETE' ];
 var option_types = [];
+
 
 function CoapMessage()
 {
@@ -32,23 +33,41 @@ function CoapMessage()
 
 module.exports = CoapMessage;
 
-CoapMessage.prototype.get_codestring = function(code) {
-  var class_ = (code & 0xe0) >>> 5;
-  var detail = code & 0x1f;
-  var ret = "";
 
-  if(class_ == 0x00)
-    ret = methods[detail];
+CoapMessage.prototype.get_codestring = function(code) {
+
+  var c = (code & 0xe0) >>> 5,
+      d = code & 0x1f;
+  var ret = '';
+
+  if(c == 0x00)
+    ret = methods[d];
   else
-    ret = util.format('%d.%02d', class_, detail);
+    ret = util.format('%d.%02d', c, d);
 
   return ret;
 };
 
-CoapMessage.prototype.parse_option = function(buf, i, last_type) {
-  var type = (buf[i] & 0xf0)>>>4;
-  var len = buf[i] & 0x0f;
-  i++;
+
+CoapMessage.prototype.get_code = function(codestring) {
+
+  var code = methods.lastIndexOf(codestring);
+  if(code < 0) {
+    var strs = codestring.split('.');
+    var c = parseInt(strs[0], 10),
+        d = parseInt(strs[1], 10);
+    code = ((c & 0x07) << 5) | (d & 0x1f);
+  }
+
+  return code;
+};
+
+
+CoapMessage.prototype.parse_option = function(buf, pos, last_type) {
+
+  var i = pos;
+  var type = (buf[i] & 0xf0) >>> 4;
+  var len = buf[i++] & 0x0f;
 
   if(type == 13) type = buf[i++] + 13;
   else if(type == 14) {
@@ -63,25 +82,27 @@ CoapMessage.prototype.parse_option = function(buf, i, last_type) {
   }
 
   var opt = {};
-  opt.type = type + last_type;
+  opt.type = option_types[type + last_type];
   opt.value = new Buffer(buf.slice(i, i+len));
   this.options.push(opt);
 
   return (i + opt.value.length);
 };
 
+
 CoapMessage.prototype.parse = function(packet) {
+
   var octet = packet[0];
   var len = packet.length;
 
   this.ver = (octet & 0xc0) >>> 6;
-  this.type = (octet & 0x30) >> 4;
-  this.code = packet.readUInt8(1);
+  this.type = types[(octet & 0x30) >> 4];
+  this.code = this.get_codestring(packet.readUInt8(1));
   this.mid = packet.readUInt16BE(2);
-  this.token = new Buffer(packet.slice(4, 4+(octet&0x0f)));
+  this.token = new Buffer(packet.slice(4, 4 + (octet & 0x0f)));
 
   // options & payload
-  var i = this.token.length + 4;
+  var i = 4 + this.token.length;
   var last_type = 0;
 
   while(i < len) {
@@ -96,9 +117,11 @@ CoapMessage.prototype.parse = function(packet) {
       i += p_len;
     }
   }
-}
+};
+
 
 CoapMessage.prototype.packetize_optionvalue = function(type, value) {
+
   if(type == 'empty')
     return new Buffer(0);
   else if(type == 'uint') {
@@ -123,13 +146,16 @@ CoapMessage.prototype.packetize_optionvalue = function(type, value) {
     else
       return value;
   }
-}
+};
+
 
 CoapMessage.prototype.packetize_option = function(opt, last_type) {
+
   var buf = new Buffer(1500);
-  var i = 0, octet = 0;
-  var type = opt.type - last_type;
-  var len = opt.value.length;
+  var i = 0,
+      octet = 0,
+      type = option_types.lastIndexOf(opt.type) - last_type,
+      len = opt.value.length;
 
   if(type < 13) {
     octet |= (type << 4);
@@ -177,18 +203,22 @@ CoapMessage.prototype.packetize_option = function(opt, last_type) {
   i += opt.value.length;
 
   return new Buffer(buf.slice(0, i));
-}
+};
+
 
 CoapMessage.prototype.packetize = function() {
+
   var buf = new Buffer(1500);
   var i = 0, last_type = 0;
-  var octet = (this.ver << 6) | (this.type << 4);
+  var octet = this.ver << 6;
+
+  octet |= (types.lastIndexOf(this.type) << 4);
 
   if(this.token != undefined)
     octet |= (this.token.length & 0x0f);
 
   buf.writeUInt8(octet, i++);
-  buf.writeUInt8(this.code, i++);
+  buf.writeUInt8(this.get_code(this.code), i++);
   buf.writeUInt16BE(this.mid, i);
   i += 2;
   this.token.copy(buf, i);
@@ -199,7 +229,7 @@ CoapMessage.prototype.packetize = function() {
     var o = this.packetize_option(this.options[j], last_type);
     o.copy(buf, i);
     i += o.length;
-    last_type = this.options[j].type;
+    last_type = option_types.lastIndexOf(this.options[j].type);
   }
 
   if(this.payload != undefined) {
@@ -209,7 +239,8 @@ CoapMessage.prototype.packetize = function() {
   }
 
   return new Buffer(buf.slice(0, i));
-}
+};
+
 
 CoapMessage.prototype.toString = function() {
   if(this.ver == undefined)
@@ -217,8 +248,8 @@ CoapMessage.prototype.toString = function() {
 
   var obj = {
     'ver': this.ver,
-    'type': types[this.type],
-    'code': this.get_codestring(this.code),
+    'type': this.type,
+    'code': this.code,
     'mid': this.mid.toString(16),
     'options': []
   };
@@ -228,7 +259,7 @@ CoapMessage.prototype.toString = function() {
 
   for(var i in this.options) {
     obj['options'].push({
-      'type': option_types[this.options[i].type],
+      'type': this.options[i].type,
       'len': this.options[i].value.length,
       'val': this.options[i].value.toString('hex')
     });
@@ -238,4 +269,4 @@ CoapMessage.prototype.toString = function() {
     obj['payload'] = this.payload.toString('hex');
 
   return JSON.stringify(obj);
-}
+};
