@@ -74,12 +74,16 @@ CoapMessage.prototype.parse_option = function(buf, pos, last_type) {
     type = buf.readUInt16BE(i) + 269;
     i += 2;
   }
+  else if(type > 14)
+    throw { name: 'ParseError', message: 'option delta parse error' };
 
   if(len == 13) len = buf[i++] + 13;
   else if(type == 14) {
     type = buf.readUInt16BE(i) + 269;
     i += 2;
   }
+  else if(len > 14)
+    throw { name: 'ParseError', message: 'option length parse error' };
 
   var opt = {};
   opt.type = option_types[type + last_type];

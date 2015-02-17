@@ -23,7 +23,14 @@ recv: function(packet, peer) {
     return;
   }
 
-  msg.parse(packet);
+  try {
+    msg.parse(packet);
+  }
+  catch(e) {
+    console.log(e.message);
+    return;
+  }
+
   connections.push(peer, msg);
 
   if(this.callback_receive != undefined)
