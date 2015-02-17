@@ -1,6 +1,6 @@
 var udp = require('./udp');
+var connections = require('./connections');
 var Message = require('./message');
-var peers = [];
 
 module.exports = {
 
@@ -24,6 +24,7 @@ recv: function(packet, peer) {
   }
 
   msg.parse(packet);
+  connections.push(peer, msg);
 
   if(this.callback_receive != undefined)
     this.callback_receive(msg, peer);
