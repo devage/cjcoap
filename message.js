@@ -143,7 +143,7 @@ CoapMessage.prototype.packetize_optionvalue = function(type, value) {
     }
   }
   else if(type == 'string')
-    return new Buffer(value, 'utf-8');
+    return new Buffer(value, 'utf8');
   else { // opaque
     if(!(value instanceof Buffer))
       return new Buffer(value);
@@ -247,6 +247,7 @@ CoapMessage.prototype.packetize = function() {
 
 
 CoapMessage.prototype.toString = function() {
+
   if(this.ver == undefined)
     return '(undefined)';
 
@@ -273,4 +274,19 @@ CoapMessage.prototype.toString = function() {
     obj['payload'] = this.payload.toString('hex');
 
   return JSON.stringify(obj);
+};
+
+
+CoapMessage.prototype.uri = function() {
+
+  var uri = '';
+
+  for(var i in this.options) {
+    if(this.options[i].type == 'Uri-Path')
+      uri += ('/' + this.options[i].value.toString('utf8'));
+  }
+
+  if(uri.length == 0) uri = '/';
+
+  return uri;
 };
