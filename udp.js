@@ -1,35 +1,48 @@
 var udp = require('dgram');
+var events = require('events');
+
+var channel = new events.EventEmitter();
 
 module.exports = {
 
 init: function(type, callback_receive) {
+
+  channel.clients = {};
+
+  channel.on('message', function(peer, message) {
+    var id = peer.address + ':' + peer.port;
+    this.clients[id] = message;
+    callback_receive(peer, message);
+  });
+
   if(type == 'client') {
     return udp.createSocket('udp4');
   }
   else if(type == 'server') {
-    var s = udp.createSocket('udp4');
+    var socket = udp.createSocket('udp4');
 
-    s.on('error', function(err) {
+    socket.on('error', function(err) {
       console.log('CoAP/UDP server error:\n' + err.stack);
-      s.close();
+      socket.close();
     });
 
-    s.on('listening', function() {
-      var addr = s.address();
+    socket.on('listening', function() {
+      var addr = socket.address();
       console.log('CoAP/UDP server listening on '
         + addr.address + ':' + addr.port);
     });
 
-    s.on('message', function(msg, info) {
+    socket.on('message', function(msg, info) {
       console.log('CoAP message received from '
         + info.address + ':' + info.port);
+      channel.emit('message', info, msg);
       if(callback_receive)
         callback_receive(msg, info);
     });
 
-    s.bind(5683);
+    socket.bind(5683);
 
-    return s;
+    return socket;
   }
 }
 

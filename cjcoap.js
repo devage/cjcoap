@@ -1,4 +1,5 @@
 var udp = require('./udp');
+var events = require('events');
 var resources = require('./resources');
 var connections = require('./connections');
 var Message = require('./message');
