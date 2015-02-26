@@ -1,6 +1,7 @@
 var udp = require('dgram');
 var events = require('events');
 
+var socket;
 var channel = new events.EventEmitter();
 
 module.exports = {
@@ -12,14 +13,15 @@ init: function(type, callback_receive) {
   channel.on('message', function(peer, message) {
     var id = peer.address + ':' + peer.port;
     this.clients[id] = message;
-    callback_receive(peer, message);
+    if(callback_receive)
+      callback_receive(peer, message);
   });
 
   if(type == 'client') {
     return udp.createSocket('udp4');
   }
   else if(type == 'server') {
-    var socket = udp.createSocket('udp4');
+    socket = udp.createSocket('udp4');
 
     socket.on('error', function(err) {
       console.log('CoAP/UDP server error:\n' + err.stack);
@@ -42,7 +44,7 @@ init: function(type, callback_receive) {
 
     socket.bind(5683);
 
-    return socket;
+    return { socket: socket, event: channel };
   }
 }
 

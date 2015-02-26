@@ -4,6 +4,42 @@ var resources = require('./resources');
 var connections = require('./connections');
 var Message = require('./message');
 var cli_socket, svr_socket;
+var netif;
+
+function recvPacket(packet, peer) {
+
+  var msg = new Message();
+
+  if(packet.length < 4) {
+    console.log('cjcoap.recv: Invalid CoAP msg -- '
+        + packet.length + 'bytes');
+    return;
+  }
+
+  try {
+    msg.parse(packet);
+  }
+  catch(e) {
+    console.log(e.message);
+    return;
+  }
+
+  connections.push(peer, msg);
+
+  //if(this.callback_receive != undefined)
+  //  this.callback_receive(msg, peer);
+
+  var ret_msg = handle_resource(peer, msg);
+
+  console.log('response: '+ret_msg.toString());
+
+  var ret_pkt = ret_msg.packetize();
+  svr_socket.send(ret_pkt, 0, ret_pkt.length, peer.port, peer.address,
+      function(err) {
+        if(err) console.log('error occurs: '+err);
+      });
+}
+
 
 function handle_resource(peer, msg) {
 
@@ -48,6 +84,7 @@ function handle_resource(peer, msg) {
   return msg;
 }
 
+
 module.exports = {
 
 callback_receive: undefined,
@@ -76,42 +113,13 @@ init: function(type, recv_func) {
   if(recv_func)
     callback_receive = recv_func;
 
-  svr_socket = udp.init(type, this.recv);
-  return svr_socket;
-},
+  var ret = udp.init(type, this.recv);
+  netif = ret.event;
+  svr_socket = ret.socket;
 
-
-recv: function(packet, peer) {
-  var msg = new Message();
-
-  if(packet.length < 4) {
-    console.log('cjcoap.recv: Invalid CoAP msg -- '
-        + packet.length + 'bytes');
-    return;
-  }
-
-  try {
-    msg.parse(packet);
-  }
-  catch(e) {
-    console.log(e.message);
-    return;
-  }
-
-  connections.push(peer, msg);
-
-  if(this.callback_receive != undefined)
-    this.callback_receive(msg, peer);
-
-  var ret_msg = handle_resource(peer, msg);
-
-  console.log('response: '+ret_msg.toString());
-
-  var ret_pkt = ret_msg.packetize();
-  svr_socket.send(ret_pkt, 0, ret_pkt.length, peer.port, peer.address,
-      function(err) {
-        if(err) console.log('error occurs: '+err);
-      });
+  netif.on('message', function(peer, message) {
+    recvPacket(message, peer);
+  });
 }
 
 }
